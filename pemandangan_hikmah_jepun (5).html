@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0b0d">
+    <meta name="application-name" content="Zen Jepang">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Zen Jepang">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Zen Jepang — Pemandangan & Hikmah Jepun</title>
+    <!-- Ikon & Manifest PWA Dinamik untuk sokongan App Shortcut satu fail -->
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="">
+    <link id="apple-touch-icon" rel="apple-touch-icon" href="">
+    <link id="pwa-manifest" rel="manifest" href="">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Outfit (Jam ala iPadOS), Noto Serif JP (Kanji/Kana Editorial), Cormorant Garamond (Romaji Puitis), Plus Jakarta Sans (Terjemahan) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Noto+Serif+JP:wght@400;500;600&family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ease-cinematic: cubic-bezier(0.22, 1, 0.36, 1);
+            --ease-crossfade: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #07080a;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Auto-hide cursor apabila tidak aktif dalam mod skrin penuh */
+        body.cursor-hidden {
+            cursor: none !important;
+        }
+
+        /* Mod Skrin Penuh Semu (Fallback apabila API Fullscreen disekat oleh iframe) */
+        body.pseudo-fullscreen {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+
+        /* Tipografi Khusus */
+        .font-clock {
+            font-family: 'Outfit', sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+        .font-jp {
+            font-family: 'Noto Serif JP', serif;
+        }
+        .font-romaji {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        .font-ms {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Lapisan Latar Belakang Dwi-Penimbal (<img>) dengan Kesan Ken Burns Perlahan */
+        .bg-layer {
+            position: absolute;
+            inset: -2%;
+            width: 104%;
+            height: 104%;
+            object-fit: cover;
+            object-position: center center;
+            opacity: 0;
+            transform: scale(1.0) translate3d(0, 0, 0);
+            transition: opacity 2.8s var(--ease-crossfade), transform 22s linear;
+            will-change: opacity, transform;
+            pointer-events: none;
+        }
+
+        .bg-layer.active {
+            opacity: 1;
+            transform: scale(1.07) translate3d(-0.6%, -0.4%, 0);
+        }
+
+        /* Tekstur Filem Halus */
+        .film-grain {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 15;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Scrim Sinematik Atas & Bawah */
+        .scrim-top {
+            background: linear-gradient(
+                180deg,
+                rgba(6, 8, 12, 0.42) 0%,
+                rgba(6, 8, 12, 0.16) 45%,
+                rgba(6, 8, 12, 0) 100%
+            );
+        }
+
+        .scrim-bottom {
+            background: linear-gradient(
+                0deg,
+                rgba(6, 8, 12, 0.72) 0%,
+                rgba(6, 8, 12, 0.36) 45%,
+                rgba(6, 8, 12, 0) 100%
+            );
+        }
+
+        /* Gaya Jam Digital Besar ala iPadOS Lockscreen */
+        .ipad-clock-digits {
+            background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.96) 0%,
+                rgba(255, 255, 255, 0.84) 55%,
+                rgba(255, 255, 255, 0.46) 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 8px 28px rgba(0, 0, 0, 0.28));
+            letter-spacing: -0.03em;
+            line-height: 0.88;
+        }
+
+        .ipad-date-label {
+            text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+        }
+
+        /* Animasi Denyutan Lembut pada Titik Bertindih Jam (:) */
+        @keyframes colonPulse {
+            0%, 100% { opacity: 0.92; }
+            50% { opacity: 0.35; }
+        }
+        .clock-colon {
+            animation: colonPulse 2.4s ease-in-out infinite;
+            display: inline-block;
+            transform: translateY(-0.04em);
+        }
+
+        /* Animasi Berperingkat (Staggered Blur & Fade-Up) untuk Quote Jepun */
+        .quote-item {
+            transition:
+                opacity 1.4s var(--ease-cinematic),
+                transform 1.4s var(--ease-cinematic),
+                filter 1.4s var(--ease-cinematic);
+            will-change: opacity, transform, filter;
+        }
+
+        .quote-out {
+            opacity: 0;
+            transform: translateY(14px);
+            filter: blur(6px);
+        }
+
+        .quote-in {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0px);
+        }
+
+        .delay-1 { transition-delay: 0ms; }
+        .delay-2 { transition-delay: 140ms; }
+        .delay-3 { transition-delay: 280ms; }
+
+        /* Bayang Teks Editorial */
+        .shadow-editorial-jp {
+            text-shadow: 0 4px 24px rgba(0, 0, 0, 0.58), 0 1px 3px rgba(0, 0, 0, 0.68);
+        }
+        .shadow-editorial-sub {
+            text-shadow: 0 2px 16px rgba(0, 0, 0, 0.68), 0 1px 2px rgba(0, 0, 0, 0.72);
+        }
+
+        /* Butang Skrin Penuh Minimalis Tanpa Kotak Kaca */
+        #fullscreen-btn {
+            transition: opacity 0.65s var(--ease-cinematic), transform 0.5s var(--ease-cinematic), color 0.3s ease;
+        }
+        #fullscreen-btn.hidden-fs {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.96);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full overflow-hidden text-white">
+
+    <!-- Lapisan Latar Belakang Dwi-Penimbal (<img> dengan fetchpriority tinggi & fallback automatik) -->
+    <img id="bg-0" class="bg-layer active" alt="Pemandangan Jepun" fetchpriority="high" decoding="async" />
+    <img id="bg-1" class="bg-layer" alt="Pemandangan Jepun" decoding="async" />
+
+    <!-- Pencahayaan Scrim Sinematik Atas & Bawah -->
+    <div class="fixed inset-x-0 top-0 h-[46vh] scrim-top pointer-events-none z-10"></div>
+    <div class="fixed inset-x-0 bottom-0 h-[48vh] scrim-bottom pointer-events-none z-10"></div>
+
+    <!-- Tekstur Filem Halus -->
+    <div class="film-grain"></div>
+
+    <!-- Butang Skrin Penuh Minimalis di Penjuru Kanan Atas (Menghilang ketika skrin penuh) -->
+    <button
+        id="fullscreen-btn"
+        type="button"
+        aria-label="Skrin Penuh"
+        title="Masuk Skrin Penuh"
+        class="fixed top-5 right-5 sm:top-7 sm:right-8 z-30 flex items-center gap-2 p-2.5 text-white/75 hover:text-white active:scale-95 focus:outline-none cursor-pointer"
+    >
+        <span class="font-ms text-[11px] sm:text-xs font-medium uppercase tracking-[0.2em] shadow-editorial-sub hidden sm:inline">
+            Skrin Penuh
+        </span>
+        <svg class="w-5 h-5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+    </button>
+
+    <!-- Susun Atur Utama: Atas (Jam ala iPadOS) & Bawah (Hikmah Jepun Minimalis) -->
+    <main class="relative z-20 w-full h-full flex flex-col justify-between items-center px-6 sm:px-12 pt-11 sm:pt-14 pb-11 sm:pb-14 text-center pointer-events-none">
+        
+        <!-- BAHAGIAN ATAS: Tarikh & Jam Digital ala iPadOS Lockscreen -->
+        <section aria-label="Jam dan Tarikh" class="flex flex-col items-center">
+            <!-- Tarikh Ringkas di Atas Jam -->
+            <p id="date-display" class="font-ms ipad-date-label text-xs sm:text-sm md:text-[15px] font-medium tracking-[0.18em] text-white/90 mb-2 sm:mb-2.5">
+                Isnin, 23 Nov
+            </p>
+            
+            <!-- Jam Digital Besar Editorial -->
+            <div class="font-clock ipad-clock-digits font-extrabold text-[5.25rem] sm:text-[7.5rem] md:text-[9.5rem] lg:text-[11rem] select-none">
+                <span id="clock-hours">22</span><span class="clock-colon mx-0.5 sm:mx-1">:</span><span id="clock-minutes">40</span>
+            </div>
+        </section>
+
+        <!-- BAHAGIAN BAWAH: Kata Hikmah Jepun (Tanpa Kotak & Tanpa Garisan) -->
+        <section aria-label="Kata Hikmah Jepun" class="max-w-3xl w-full flex flex-col items-center">
+            <!-- 1. Aksara Bahasa Jepun (Kanji / Kana) -->
+            <h1 id="jp-text" class="quote-item quote-in delay-1 font-jp shadow-editorial-jp text-2xl sm:text-4xl md:text-[2.65rem] font-medium tracking-[0.14em] leading-snug text-white/95 mb-2.5 sm:mb-3.5">
+                一期一会
+            </h1>
+
+            <!-- 2. Sebutan Romaji -->
+            <p id="romaji-text" class="quote-item quote-in delay-2 font-romaji shadow-editorial-sub italic text-lg sm:text-xl md:text-2xl tracking-[0.18em] text-amber-100/85 mb-3.5 sm:mb-4">
+                Ichi-go ichi-e
+            </p>
+
+            <!-- 3. Terjemahan Puitis Bahasa Melayu -->
+            <p id="ms-text" class="quote-item quote-in delay-3 font-ms shadow-editorial-sub text-sm sm:text-base md:text-[17px] font-light tracking-[0.02em] leading-relaxed text-white/85 max-w-xl">
+                Satu pertemuan, satu peluang — hargailah setiap detik kebersamaan kerana ia tidak akan berulang dengan cara yang sama.
+            </p>
+        </section>
+
+    </main>
+
+    <script>
+        /**
+         * Gambar Sandaran Gunung Fuji sekiranya mana-mana URL gagal dimuatkan
+         */
+        const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?auto=format&fit=crop&w=2400&q=90";
+
+        /**
+         * 10 Koleksi Pemandangan Jepun Resolusi Tinggi & Kata-Kata Hikmah Zen
+         */
+        const zenScenes = [
+            {
+                // 1. Gunung Fuji waktu subuh tenang
+                image: "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?auto=format&fit=crop&w=2400&q=90",
+                jp: "一期一会",
+                romaji: "Ichi-go ichi-e",
+                ms: "Satu pertemuan, satu peluang — hargailah setiap detik kebersamaan kerana ia tidak akan berulang dengan cara yang sama."
+            },
+            {
+                // 2. Hutan Buluh Arashiyama berkabus pagi
+                image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=2400&q=90",
+                jp: "柳に風",
+                romaji: "Yanagi ni kaze",
+                ms: "Bagaikan dahan dedalu ditiup angin — kelembutan dan kelenturan hati mampu meredakan ribut tanpa perlu patah."
+            },
+            {
+                // 3. Kuil Kiyomizu-dera & panorama Kyoto waktu senja
+                image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=2400&q=90",
+                jp: "花鳥風月",
+                romaji: "Kachō fūgetsu",
+                ms: "Bunga, burung, angin dan bulan — dalam keheningan alam semula jadi, kita kembali mengenali ketenangan diri."
+            },
+            {
+                // 4. Bunga Sakura mekar di tepi sungai musim bunga
+                image: "https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=2400&q=90",
+                jp: "物の哀れ",
+                romaji: "Mono no aware",
+                ms: "Keindahan yang menyentuh jiwa dalam kefanaan — seperti kelopak sakura yang gugur mengajar kita menghargai masa kini."
+            },
+            {
+                // 5. Perkampungan bersalji Shirakawa-go waktu senja biru
+                image: "https://images.unsplash.com/photo-1542640244-7e672d6cef4e?auto=format&fit=crop&w=2400&q=90",
+                jp: "雪月花",
+                romaji: "Setsu-getsu-ka",
+                ms: "Salji, bulan dan bunga — setiap musim membawa keindahan fana yang mengajarkan kita mensyukuri perjalanan hidup."
+            },
+            {
+                // 6. Gerbang Torii Terapung Itsukushima, Miyajima
+                image: "https://images.unsplash.com/photo-1526481280693-3bfa7568e0f3?auto=format&fit=crop&w=2400&q=90",
+                jp: "千里の道も一歩から",
+                romaji: "Senri no michi mo ippo kara",
+                ms: "Perjalanan sejauh seribu batu bermula dengan satu langkah pertama — melangkahlah dengan tenang dan yakin."
+            },
+            {
+                // 7. Taman Musim Luruh Daun Maple Merah (Momiji)
+                image: "https://images.unsplash.com/photo-1504109586057-7a2ae83d1338?auto=format&fit=crop&w=2400&q=90",
+                jp: "侘寂",
+                romaji: "Wabi-sabi",
+                ms: "Menemukan keindahan dalam kesederhanaan dan ketidaksempurnaan — segala yang berubah punya pesonanya tersendiri."
+            },
+            {
+                // 8. Pantulan Gunung Fuji di Tasik Kawaguchiko
+                image: "https://images.unsplash.com/photo-1578637387939-43c525550085?auto=format&fit=crop&w=2400&q=90",
+                jp: "明鏡止水",
+                romaji: "Meikyō shisui",
+                ms: "Bagaikan cermin jernih dan air yang tenang — fikiran yang damai memantulkan kebenaran tanpa kekeruhan."
+            },
+            {
+                // 9. Tanglung & Gerbang Senja Fushimi Inari
+                image: "https://images.unsplash.com/photo-1478436127897-769e1b3f0f36?auto=format&fit=crop&w=2400&q=90",
+                jp: "七転び八起き",
+                romaji: "Nanakorobi yaoki",
+                ms: "Jatuh tujuh kali, bangkit lapan kali — ketabahan sebenar lahir daripada keberanian untuk terus melangkah."
+            },
+            {
+                // 10. Pagoda Chureito menghadap Gunung Fuji waktu pagi
+                image: "https://images.unsplash.com/photo-1528164344705-47542687000d?auto=format&fit=crop&w=2400&q=90",
+                jp: "静寂の中に力あり",
+                romaji: "Seijaku no naka ni chikara ari",
+                ms: "Di dalam keheningan tersimpan kekuatan yang mendalam — tenangkan fikiran agar hati mendengar arah yang sebenar."
+            }
+        ];
+
+        // Konfigurasi Masa Sinematik
+        const SLIDE_INTERVAL_MS = 18000; // 18 saat setiap pemandangan
+        const CURSOR_HIDE_MS = 2000;     // 2 saat kursor menghilang dalam mod skrin penuh
+
+        // Keadaan Aplikasi
+        let currentIndex = 0;
+        let activeBuffer = 0;
+        let slideTimer = null;
+        let cursorTimer = null;
+        let isPseudoFullscreen = false;
+
+        // Elemen DOM
+        const bgBuffers = [
+            document.getElementById('bg-0'),
+            document.getElementById('bg-1')
+        ];
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const dateDisplay = document.getElementById('date-display');
+        const clockHours = document.getElementById('clock-hours');
+        const clockMinutes = document.getElementById('clock-minutes');
+
+        const jpText = document.getElementById('jp-text');
+        const romajiText = document.getElementById('romaji-text');
+        const msText = document.getElementById('ms-text');
+        const quoteItems = [jpText, romajiText, msText];
+
+        // Nama Hari & Bulan dalam Bahasa Melayu
+        const HARI_MS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+        const BULAN_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+
+        /**
+         * Tetapkan pengendali ralat imej (onerror fallback ke Gunung Fuji)
+         */
+        bgBuffers.forEach(imgEl => {
+            imgEl.onerror = function () {
+                if (this.src !== FALLBACK_IMAGE) {
+                    this.src = FALLBACK_IMAGE;
+                }
+            };
+        });
+
+        /**
+         * Kemas kini Jam & Tarikh secara masa nyata
+         */
+        function updateClock() {
+            const now = new Date();
+            const hari = HARI_MS[now.getDay()];
+            const tarikh = now.getDate();
+            const bulan = BULAN_MS[now.getMonth()];
+
+            const jam = String(now.getHours()).padStart(2, '0');
+            const minit = String(now.getMinutes()).padStart(2, '0');
+
+            dateDisplay.textContent = `${hari}, ${tarikh} ${bulan}`;
+            if (clockHours.textContent !== jam) clockHours.textContent = jam;
+            if (clockMinutes.textContent !== minit) clockMinutes.textContent = minit;
+        }
+
+        /**
+         * Pramuat 2 gambar ke hadapan supaya transisi sentiasa lancar
+         */
+        function preloadUpcomingImages(index) {
+            for (let offset = 1; offset <= 2; offset++) {
+                const nextIdx = (index + offset) % zenScenes.length;
+                const preloader = new Image();
+                preloader.src = zenScenes[nextIdx].image;
+            }
+        }
+
+        /**
+         * Tukar Slaid Pemandangan & Kata Hikmah dengan Transisi Sinematik (2.8s crossfade)
+         */
+        function transitionToSlide(nextIndex) {
+            currentIndex = (nextIndex + zenScenes.length) % zenScenes.length;
+            const scene = zenScenes[currentIndex];
+
+            // 1. Sediakan lapisan <img> baharu
+            const nextBuffer = activeBuffer === 0 ? 1 : 0;
+            const incomingLayer = bgBuffers[nextBuffer];
+            const outgoingLayer = bgBuffers[activeBuffer];
+
+            incomingLayer.src = scene.image;
+
+            // Reset kedudukan skala sebelum memulakan gerakan Ken Burns 22 saat
+            incomingLayer.style.transition = 'none';
+            incomingLayer.style.transform = 'scale(1.0) translate3d(0, 0, 0)';
+            incomingLayer.offsetHeight; // Paksa reflow
+
+            incomingLayer.style.transition = 'opacity 2.8s cubic-bezier(0.4, 0, 0.2, 1), transform 22s linear';
+            incomingLayer.classList.add('active');
+            outgoingLayer.classList.remove('active');
+
+            activeBuffer = nextBuffer;
+
+            // 2. Animasi keluar (blur & fade-down) pada teks kata hikmah
+            quoteItems.forEach(el => {
+                el.classList.remove('quote-in');
+                el.classList.add('quote-out');
+            });
+
+            // 3. Kemas kini teks setelah pudar dan paparkan semula secara berperingkat
+            setTimeout(() => {
+                jpText.textContent = scene.jp;
+                romajiText.textContent = scene.romaji;
+                msText.textContent = scene.ms;
+
+                quoteItems.forEach(el => {
+                    el.classList.remove('quote-out');
+                    el.classList.add('quote-in');
+                });
+            }, 1150);
+
+            // Pramuat 2 gambar seterusnya
+            preloadUpcomingImages(currentIndex);
+        }
+
+        /**
+         * Semak sama ada pelayar berada dalam Skrin Penuh Sebenar
+         */
+        function isNativeFullscreen() {
+            return Boolean(
+                document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement
+            );
+        }
+
+        /**
+         * Semak sama ada berada dalam sebarang mod skrin penuh (Sebenar atau Semu)
+         */
+        function isAnyFullscreen() {
+            return isNativeFullscreen() || isPseudoFullscreen;
+        }
+
+        /**
+         * Kemas kini UI & kursor mengikut status skrin penuh semasa
+         */
+        function syncFullscreenUI() {
+            const active = isAnyFullscreen();
+            if (active) {
+                fullscreenBtn.classList.add('hidden-fs');
+                handleCursorActivity();
+            } else {
+                fullscreenBtn.classList.remove('hidden-fs');
+                clearTimeout(cursorTimer);
+                document.body.classList.remove('cursor-hidden');
+            }
+        }
+
+        /**
+         * Aktifkan Mod Skrin Penuh Semu (Fallback apabila API pelayar disekat oleh iframe)
+         */
+        function enterPseudoFullscreen() {
+            isPseudoFullscreen = true;
+            document.body.classList.add('pseudo-fullscreen');
+            syncFullscreenUI();
+        }
+
+        /**
+         * Keluar daripada Mod Skrin Penuh Semu
+         */
+        function exitPseudoFullscreen() {
+            if (!isPseudoFullscreen) return;
+            isPseudoFullscreen = false;
+            document.body.classList.remove('pseudo-fullscreen');
+            syncFullscreenUI();
+        }
+
+        /**
+         * Masuk Skrin Penuh (Cuba API Native dahulu, jatuh ke Pseudo-Fullscreen jika ditolak/disekat)
+         */
+        function enterFullscreen(e) {
+            if (e) e.stopPropagation();
+
+            const docEl = document.documentElement;
+            const fsSupported = Boolean(
+                document.fullscreenEnabled ||
+                document.webkitFullscreenEnabled ||
+                document.mozFullScreenEnabled ||
+                document.msFullscreenEnabled
+            );
+
+            const reqFs = docEl.requestFullscreen ||
+                          docEl.webkitRequestFullscreen ||
+                          docEl.mozRequestFullScreen ||
+                          docEl.msRequestFullscreen;
+
+            if (!fsSupported || !reqFs) {
+                enterPseudoFullscreen();
+                return;
+            }
+
+            try {
+                const promise = reqFs.call(docEl);
+                if (promise && typeof promise.then === 'function') {
+                    promise
+                        .then(() => {
+                            syncFullscreenUI();
+                        })
+                        .catch(() => {
+                            // Jika disekat oleh polisi sandbox iframe, gunakan fallback skrin penuh semu
+                            enterPseudoFullscreen();
+                        });
+                } else {
+                    // Bagi pelayar lama yang tidak memulangkan Promise
+                    setTimeout(() => {
+                        if (!isNativeFullscreen()) {
+                            enterPseudoFullscreen();
+                        } else {
+                            syncFullscreenUI();
+                        }
+                    }, 120);
+                }
+            } catch (err) {
+                enterPseudoFullscreen();
+            }
+        }
+
+        /**
+         * Sembunyikan kursor selepas 2 saat tanpa pergerakan dalam mod skrin penuh
+         */
+        function handleCursorActivity() {
+            if (!isAnyFullscreen()) {
+                document.body.classList.remove('cursor-hidden');
+                return;
+            }
+            document.body.classList.remove('cursor-hidden');
+            clearTimeout(cursorTimer);
+            cursorTimer = setTimeout(() => {
+                if (isAnyFullscreen()) {
+                    document.body.classList.add('cursor-hidden');
+                }
+            }, CURSOR_HIDE_MS);
+        }
+
+        // Pendengar Acara Butang Skrin Penuh
+        fullscreenBtn.addEventListener('click', enterFullscreen);
+
+        // Pendengar Perubahan Skrin Penuh Sebenar (ESC atau kawalan pelayar)
+        document.addEventListener('fullscreenchange', syncFullscreenUI);
+        document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
+        document.addEventListener('mozfullscreenchange', syncFullscreenUI);
+        document.addEventListener('MSFullscreenChange', syncFullscreenUI);
+
+        // Kekunci Escape untuk keluar daripada mod skrin penuh semu
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isPseudoFullscreen) {
+                exitPseudoFullscreen();
+            }
+        });
+
+        // Klik dua kali (dblclick) pada skrin untuk keluar daripada mod skrin penuh semu
+        document.addEventListener('dblclick', () => {
+            if (isPseudoFullscreen) {
+                exitPseudoFullscreen();
+            }
+        });
+
+        // Aktiviti tetikus / sentuhan untuk auto-sembunyi kursor
+        document.addEventListener('mousemove', handleCursorActivity, { passive: true });
+        document.addEventListener('touchstart', handleCursorActivity, { passive: true });
+
+        // Mulakan Aplikasi
+        window.addEventListener('DOMContentLoaded', () => {
+            // Jana ikon aplikasi SVG terbenam (Torii & Gunung Fuji) dan Web App Manifest dinamik
+            (function setupPWAAppShortcut() {
+                const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                    <defs>
+                        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#0a0b0d"/>
+                            <stop offset="100%" stop-color="#171920"/>
+                        </linearGradient>
+                        <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#fde68a" stop-opacity="0.95"/>
+                            <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.35"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+                    <circle cx="256" cy="215" r="118" fill="url(#sun)"/>
+                    <!-- Siluet Gunung Fuji Minimalis -->
+                    <path d="M72 396 L212 224 Q256 202 300 224 L440 396 Z" fill="#1e222d"/>
+                    <path d="M212 224 Q256 202 300 224 L322 252 L292 246 L274 262 L256 244 L238 262 L220 246 L190 252 Z" fill="#f8fafc" opacity="0.92"/>
+                    <!-- Simbol Gerbang Torii Minimalis -->
+                    <path d="M158 292 Q256 306 354 292 L362 306 Q256 320 150 306 Z" fill="#e11d48"/>
+                    <rect x="176" y="330" width="160" height="11" rx="4" fill="#be123c"/>
+                    <rect x="200" y="302" width="14" height="94" rx="4" fill="#e11d48"/>
+                    <rect x="298" y="302" width="14" height="94" rx="4" fill="#e11d48"/>
+                    <rect x="250" y="306" width="12" height="26" fill="#be123c"/>
+                </svg>`;
+
+                const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgIcon);
+
+                const faviconEl = document.getElementById('app-favicon');
+                const appleIconEl = document.getElementById('apple-touch-icon');
+                if (faviconEl) faviconEl.href = svgDataUrl;
+                if (appleIconEl) appleIconEl.href = svgDataUrl;
+
+                const manifestData = {
+                    name: 'Zen Jepang',
+                    short_name: 'Zen Jepang',
+                    description: 'Pemandangan sinematik Jepun, kata hikmah Zen dan jam digital minimalis.',
+                    start_url: window.location.href,
+                    display: 'standalone',
+                    orientation: 'landscape',
+                    background_color: '#0a0b0d',
+                    theme_color: '#0a0b0d',
+                    icons: [
+                        {
+                            src: svgDataUrl,
+                            sizes: '512x512',
+                            type: 'image/svg+xml',
+                            purpose: 'any maskable'
+                        }
+                    ]
+                };
+
+                try {
+                    const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/manifest+json' });
+                    const manifestUrl = URL.createObjectURL(manifestBlob);
+                    const manifestEl = document.getElementById('pwa-manifest');
+                    if (manifestEl) manifestEl.href = manifestUrl;
+                } catch (e) {
+                    const manifestEl = document.getElementById('pwa-manifest');
+                    if (manifestEl) {
+                        manifestEl.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestData));
+                    }
+                }
+            })();
+
+            // Mulakan jam & kemas kini setiap saat
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Tetapkan slaid pertama
+            const firstScene = zenScenes[0];
+            bgBuffers[0].src = firstScene.image;
+            jpText.textContent = firstScene.jp;
+            romajiText.textContent = firstScene.romaji;
+            msText.textContent = firstScene.ms;
+
+            // Pramuat 2 gambar berikutnya & mulakan kitaran automatik setiap 18 saat
+            preloadUpcomingImages(0);
+            slideTimer = setInterval(() => {
+                transitionToSlide(currentIndex + 1);
+            }, SLIDE_INTERVAL_MS);
+        });
+    </script>
+</body>
+</html>
